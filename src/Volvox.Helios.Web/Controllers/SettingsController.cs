@@ -101,7 +101,8 @@ namespace Volvox.Helios.Web.Controllers
             // Get general module settings for guild, from database.
             var settings = await _streamAnnouncerSettingsService.GetSettingsByGuild(guildId, x => x.WhiteListedRoleIds);
 
-            if (settings == null) return View(viewModel);
+            if (settings == null)
+                return View(viewModel);
 
             viewModel.Enabled = settings.Enabled;
             viewModel.StreamerRoleEnabled = settings.StreamerRoleEnabled;
@@ -115,7 +116,8 @@ namespace Volvox.Helios.Web.Controllers
             var defaultChannel = settings.ChannelSettings?.FirstOrDefault(x => x.ChannelId == textChannels[0].Id);
 
             // No channels setting saved, return view model as is.
-            if (defaultChannel == null) return View(viewModel);
+            if (defaultChannel == null)
+                return View(viewModel);
 
             viewModel.ChannelSettings.RemoveMessages = defaultChannel.RemoveMessage;
 
@@ -358,6 +360,15 @@ namespace Volvox.Helios.Web.Controllers
             await _dadSettingsService.SaveSettings(currentSettings);
 
             return RedirectToAction("Index");
+        }
+
+        #endregion
+
+        #region Moderation
+        [HttpGet("Moderation")]
+        public IActionResult ModerationSettings(ulong guildId)
+        {
+            return RedirectToAction("Index", "Moderation");
         }
 
         #endregion

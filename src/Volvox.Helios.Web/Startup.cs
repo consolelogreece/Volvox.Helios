@@ -1,9 +1,13 @@
 ﻿using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Discord.WebSocket;
 using FluentCache;
 using FluentCache.Microsoft.Extensions.Caching.Memory;
+using Hangfire;
+using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Builder;
@@ -14,35 +18,50 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Volvox.Helios.Core.Bot;
+using Volvox.Helios.Core.Jobs;
 using Volvox.Helios.Core.Modules.ChatTracker;
 using Volvox.Helios.Core.Modules.Command;
 using Volvox.Helios.Core.Modules.Command.Commands;
 using Volvox.Helios.Core.Modules.Command.Framework;
 using Volvox.Helios.Core.Modules.Common;
+using Volvox.Helios.Core.Modules.ModerationModule;
+using Volvox.Helios.Core.Modules.ModerationModule.BypassCheck;
+using Volvox.Helios.Core.Modules.ModerationModule.Factories.FilterFactory;
+using Volvox.Helios.Core.Modules.ModerationModule.Factories.PunishmentFactory;
+using Volvox.Helios.Core.Modules.ModerationModule.Filters;
+using Volvox.Helios.Core.Modules.ModerationModule.PunishmentService;
+using Volvox.Helios.Core.Modules.ModerationModule.PunishmentService.ActivePunishmentService;
+using Volvox.Helios.Core.Modules.ModerationModule.PunishmentService.Punishments;
+using Volvox.Helios.Core.Modules.ModerationModule.UserWarningsService;
+using Volvox.Helios.Core.Modules.ModerationModule.Utils;
+using Volvox.Helios.Core.Modules.ModerationModule.ViolationService;
+using Volvox.Helios.Core.Modules.ModerationModule.WarningService;
+using Volvox.Helios.Core.Modules.ReminderModule;
+using Volvox.Helios.Core.Modules.Streamer;
 using Volvox.Helios.Core.Services.MessageService;
 using Volvox.Helios.Core.Utilities;
 using Volvox.Helios.Service;
+using Volvox.Helios.Service.BackgroundJobs;
 using Volvox.Helios.Service.Clients;
 using Volvox.Helios.Service.Discord.Guild;
+using Volvox.Helios.Service.Discord.User;
 using Volvox.Helios.Service.Discord.UserGuild;
 using Volvox.Helios.Service.EntityService;
+using Volvox.Helios.Service.Jobs;
 using Volvox.Helios.Service.ModuleSettings;
 using Volvox.Helios.Web.Filters;
 using Volvox.Helios.Web.HostedServices.Bot;
-using Hangfire;
-using Hangfire.SqlServer;
-using Volvox.Helios.Core.Modules.ReminderModule;
-using Volvox.Helios.Service.BackgroundJobs;
-using Volvox.Helios.Service.Jobs;
 using IHostingEnvironment = Microsoft.AspNetCore.Hosting.IHostingEnvironment;
 using Discord.WebSocket;
+using Microsoft.AspNetCore.HttpOverrides;
 using Volvox.Helios.Core.Modules.Streamer;
 using System.Data.SqlClient;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Volvox.Helios.Core.Modules.DadModule;
 
 namespace Volvox.Helios.Web
 {
@@ -125,7 +144,26 @@ namespace Volvox.Helios.Web
             services.AddSingleton<IModule, StreamerModule>();
             services.AddSingleton<IModule, ChatTrackerModule>();
             services.AddSingleton<IModule, RemembotModule>();
-            services.AddSingleton<IModule, DadModule>();
+            services.AddSingleton<IModule, ModerationModule>();
+
+            // Moderation Module specific services
+            services.AddSingleton<IViolationService, ViolationService>();
+            services.AddSingleton<IFilterService, LinkFilterService>();
+            services.AddSingleton<IFilterService, ProfanityFilterService>();
+            services.AddSingleton<IList<IFilterService>>(s => s.GetServices<IFilterService>().ToList());
+            services.AddSingleton<IFilterFactory, FilterFactory>();
+            services.AddSingleton<IPunishmentFactory, PunishmentFactory>();
+            services.AddSingleton<IWarningService, WarningService>();
+            services.AddSingleton<IUserWarningsService, UserWarningsService>();
+            services.AddSingleton<IBypassCheck, BypassCheck>();
+            services.AddSingleton<IModerationModuleUtils, ModerationModuleUtils>();
+            // Moderation Module punishments
+            services.AddSingleton<IPunishment, BanPunishment>();
+            services.AddSingleton<IPunishment, KickPunishment>();
+            services.AddSingleton<IPunishment, AddRolePunishment>();
+            services.AddSingleton<IList<IPunishment>>(s => s.GetServices<IPunishment>().ToList());
+            services.AddSingleton<IActivePunishmentService, ActivePunishmentService>();
+            services.AddSingleton<IPunishmentService, PunishmentService>();
 
             // Commands
             services.AddSingleton<IModule, CommandManager>();
@@ -141,6 +179,7 @@ namespace Volvox.Helios.Web
 
             // Discord Services
             services.AddScoped<IDiscordUserGuildService, DiscordUserGuildService>();
+            services.AddScoped<IDiscordUserService, DiscordUserService>();
             services.AddScoped<IDiscordGuildService, DiscordGuildService>();
             services.AddSingleton<IMessageService, MessageService>();
 
@@ -156,14 +195,22 @@ namespace Volvox.Helios.Web
             services.AddSingleton<IJobService, JobService>();
             services.AddTransient<JobActivator, ServiceProviderJobActivator>();
             services.AddTransient<RecurringReminderMessageJob>();
+            services.AddSingleton<RemoveExpiredWarningsJob>();
+            services.AddSingleton<RemovePunishmentJob>();
 
             // MVC
             services.AddMvc(options =>
             {
                 options.Filters.Add(new ModelStateValidationFilter());
                 options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
-            })
+            })       
             .SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+
+            // Ignore self-ref loop to prevent error when serializing entities with navigation properties when using hangfire.
+            JsonConvert.DefaultSettings = () => new JsonSerializerSettings
+            {
+                ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+            };
 
             // Entity Framework
             services.AddDbContext<VolvoxHeliosContext>(options =>

@@ -1,0 +1,209 @@
+﻿@model Volvox.Helios.Web.ViewModels.Moderation.LinkFilterViewModel
+@{
+    ViewData["Title"] = "Link Filter Settings";
+}
+
+<div class="col-12 breadcrumb-wrapper">
+    <nav aria-label="breadcrumb" class="container">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a asp-controller="Moderation" asp-action="Index" class="text-volvox">Moderation</a></li>
+            <li class="breadcrumb-item"><a asp-controller="Moderation" asp-action="general" class="text-volvox">Global Settings</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Link Filter</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="container mt-4">
+    <h2>Link Filter Settings</h2>
+    <hr />
+
+    <div class="col-12">
+        <form method="post">
+            <div asp-validation-summary="All" class="text-danger"></div>
+
+            <div class="row rounded module-input-wrapper">
+                <div class="col-md-9 pt-3 pb-3">
+                    <h4>Enabled</h4>
+                    <p class="mb-0 text-volvox">
+                        Enables or disables the moderation module.
+                    </p>
+                </div>
+                <div class="col-md-3 valign">
+                    <div class="btn-group material-btn-group ml-md-auto mb-3 mb-md-0">
+                        <label for="enabledBtn" class="btn pr-4 pl-4 module-enabler @(Model.Enabled ? "active" : "disabled")">
+                            On
+                            <input id="enabledBtn" type="radio" name="Enabled" class="d-none" value="true" @(Model.Enabled ? "checked" : "")>
+                        </label>
+                        <label for="disabledBtn" class="btn pr-4 pl-4 module-enabler @(Model.Enabled ? "disabled" : "active")">
+                            Off
+                            <input id="disabledBtn" type="radio" name="Enabled" class="d-none" value="false" @(Model.Enabled ? "" : "checked")>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <span asp-validation-for="Enabled" class="text-danger"></span>
+
+            <div class="row rounded module-input-wrapper mt-3 pt-2">
+                <div class="col-12 form-group">
+                    <label asp-for="WarningExpirePeriod"></label>
+                    <div id="warningExpirePeriod"></div>
+                    <input type="hidden" asp-for="WarningExpirePeriod" />
+                </div>
+
+                <div class="col-12 form-group">
+                    <label asp-for="WhitelistedChannels"></label>
+                    <div id="whiteListedChannels"></div>
+                    <select class="d-none" id="whiteListedChannelsHidden" asp-for="SelectedChannels" multiple></select>
+                    <span asp-validation-for="WhitelistedChannels" class="text-danger"></span>
+                </div>
+
+                <div class="col-12 form-group">
+                    <label asp-for="WhitelistedRoles"></label>
+                    <div id="whiteListedRoles"></div>
+                    <select class="d-none" id="whiteListedRolesHidden" asp-for="SelectedRoles" multiple></select>
+                    <span asp-validation-for="WhitelistedRoles" class="text-danger"></span>
+                </div>
+
+                <div class="col-12 form-group">
+                    <label asp-for="WhitelistedLinks"></label>
+                    <div id="whiteListedLinks"></div>
+                    <select class="d-none" id="whiteListedLinksHidden" asp-for="SelectedLinks" multiple></select>
+                    <span asp-validation-for="WhitelistedLinks" class="text-danger"></span>
+                </div>
+
+                <div class="col-12 form-group">
+                    <label asp-for="SelectedLinks" class="form-check-label"></label>
+                    <div class="d-table mt-2">
+                        <div class="d-table-cell w-100">
+                            <input id="addLinkBox" type="text" class="form-control material-input" autocomplete="off" />
+                        </div>
+                        <button id="addLinkBtn" class="d-block bg-volvox rounded-circle add-btn" type="button">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="vertical-margin-medium">
+                <div class="row module-input-wrapper rounded sliding-border ">
+                    <div class="col-md-9 col-10 pt-3 pb-3">
+                        <h4 class="mb-0">Link Wild Cards</h4>
+                    </div>
+                    <div class="col-md-3 col-2 valign">
+                        <div class="btn-group material-btn-group ml-auto">
+                            <a href="#infoCollapse" class="info-btn" data-toggle="collapse" data-animation="sliding-border" role="button" aria-expanded="false" aria-controls="infoCollapse">
+                                <i class="fas fa-info-circle"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-12 collapse" id="infoCollapse">
+                        <label>? - any character (one and only one)</label>
+                        <p>Example: "www.volvox.tech/? means ""www.volvox.tech/A" would be legal, but ""www.volvox.tech/AB" would not be.</p>
+                        <hr/>
+                        <label>* - any characters (zero or more)</label>
+                        <p>Example: "www.volvox.tech/*" means "www.volvox.tech/user" would be legal.</p>
+                    </div>
+                </div>
+            </div>
+            
+
+            <div class="row form-group mt-4 mb-4">
+                <button type="submit" class="btn btn-volvox-outline save-btn ml-auto">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+<script>
+        $('main').removeClass('container').addClass('p-0 mt-0');
+
+        $('input[type="text"]').keypress((e) => {
+            if (e.keyCode == 13) {
+                return false;
+            }
+        });
+
+        $('.module-enabler input:not(".active")').click((e) => {
+            $(e.currentTarget).closest('.module-enabler').parent().find('.active').toggleClass('active disabled');
+            $(e.currentTarget).closest('.module-enabler').toggleClass('active disabled');
+        });
+
+        let warningExpirePeriod = @(Html.Raw(Model.WarningExpirePeriod));
+        $('#warningExpirePeriod').dxNumberBox({
+            dataSource: warningExpirePeriod,
+            min: 0,
+            max: 2147483647,
+            value: warningExpirePeriod,
+            onInitialized: (e) => {
+                $('input[name="WarningExpirePeriod"]').val(warningExpirePeriod);
+            },
+            onValueChanged: (e) => {
+                $('input[name="WarningExpirePeriod"]').val(e.value);
+            }
+        });
+
+        let whiteListedChannels = @(Html.Raw(Json.Serialize(Model.WhitelistedChannels)));
+        $('#whiteListedChannels').dxTagBox({
+            dataSource: whiteListedChannels,
+            valueExpr: "value",
+            displayExpr: "text",
+            value: whiteListedChannels.filter((e) => { return e.selected; }).map((e) => { return e.value }),
+            onInitialized: (e) => {
+                setTimeout((e) => {
+                    $('#whiteListedChannelsHidden').append($('#whiteListedChannels .dx-dropdowneditor-input-wrapper').find('select option'));
+                }, 1000);
+            },
+            onValueChanged: (e) => {
+                $('#whiteListedChannelsHidden').empty().append($('#whiteListedChannels .dx-dropdowneditor-input-wrapper').find('select option'));
+            }
+        });
+
+        let whiteListedRoles = @(Html.Raw(Json.Serialize(Model.WhitelistedRoles)));
+        $('#whiteListedRoles').dxTagBox({
+            dataSource: whiteListedRoles,
+            valueExpr: "value",
+            displayExpr: "text",
+            value: whiteListedRoles.filter((e) => { return e.selected; }).map((e) => { return e.value; }),
+            onInitialized: (e) => {
+                setTimeout((e) => {
+                    $('#whiteListedRolesHidden').append($('#whiteListedRoles .dx-dropdowneditor-input-wrapper').find('select option'));
+                });
+            },
+            onValueChanged: (e) => {
+                $('#whiteListedRolesHidden').empty().append($('#whiteListedRoles .dx-dropdowneditor-input-wrapper').find('select option'));
+            }
+        });
+
+        let whiteListedLinks = @(Html.Raw(Json.Serialize(Model.WhitelistedLinks)))
+        let tagBox = $('#whiteListedLinks').dxTagBox({
+            dataSource: whiteListedLinks,
+            valueExpr: "text",
+            displayExpr: "text",
+            value: whiteListedLinks.filter((e) => { return e.selected; }).map((e) => { return e.text; }),
+            onInitialized: (e) => {
+                setTimeout((e) => {
+                    $('#whiteListedLinksHidden').append($('#whiteListedLinks .dx-dropdowneditor-input-wrapper').find('select option'));
+                });
+            },
+            onValueChanged: (e) => {
+                $('#whiteListedLinksHidden').empty().append($('#whiteListedLinks .dx-dropdowneditor-input-wrapper').find('select option'));
+            }
+        }).dxTagBox('instance');
+
+        $('#addLinkBtn').click((e) => {
+            if ($('#addLinkBox').val() != '') {
+                whiteListedLinks.push({
+                    disabled: false,
+                    selected: true,
+                    text: $('#addLinkBox').val()
+                });
+                tagBox.option('value', whiteListedLinks.filter((e) => { return e.selected; }).map((e) => { return e.text; }));
+                $('#addLinkBox').val('');
+            }
+        });
+</script>
+}
+
+

@@ -18,7 +18,7 @@
 <div class="row">
 
     <div class="col-12">
-        <div class="row border border-gray2 rounded sliding-border ml-0 mr-0">
+        <div class="row rounded sliding-border module-input-wrapper mr-0 ml-0">
             <div class="col-md-9 col-10 pt-3 pb-3">
                 <h4 class="mb-0">Information and Instructions</h4>
             </div>
@@ -43,7 +43,7 @@
         </div>
     </div>
     <div class="col-md-12 col-lg-6">
-        <div class="col-12 border border-gray2 rounded pt-2 h-100">
+        <div class="col-12 rounded module-input-wrapper pt-2 h-100">
             <h5 id="Title" class="mb-4">Hey, how cool is this example?</h5>
             <div class="form-group">
                 <label asp-for="Options" class="font-size-small"></label>
@@ -77,7 +77,7 @@
         </div>
     </div>
     <div class="col-md-12 col-lg-6 mt-lg-0 mt-4">
-        <div class="col-12 border border-gray2 rounded pt-2 h-100">
+        <div class="col-12 pt-2 h-100">
             <div id="pieChart"></div>
         </div>
     </div>
@@ -127,7 +127,7 @@
     </script>
     <script>
         $(function () {
-            var src = JSON.parse('@(Html.Raw(Json.Serialize(Model.Polls)))');
+            var src = @(Html.Raw(Json.Serialize(Model.Polls)));
             
             $("#poll").dxSelectBox({
                 dataSource: src,

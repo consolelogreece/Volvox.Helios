@@ -3,6 +3,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Volvox.Helios.Core.Modules.StreamAnnouncer;
 using Volvox.Helios.Domain.Module;
 using Volvox.Helios.Domain.Module.ChatTracker;
+using Volvox.Helios.Domain.Module.ModerationModule;
+using Volvox.Helios.Domain.Module.ModerationModule.Common;
+using Volvox.Helios.Domain.Module.ModerationModule.LinkFilter;
+using Volvox.Helios.Domain.Module.ModerationModule.ProfanityFilter;
 using Volvox.Helios.Domain.ModuleSettings;
 
 namespace Volvox.Helios.Service
@@ -37,6 +41,10 @@ namespace Volvox.Helios.Service
         #region Reminder
         public DbSet<RemembotSettings> ReminderSettings { get; set; }
         public DbSet<RecurringReminderMessage> RecurringReminderMessages { get; set; }
+        #endregion
+
+        #region ModerationSettings
+        public DbSet<ModerationSettings> ModerationSettings { get; set; }
         #endregion
 
         #region Dad Module
